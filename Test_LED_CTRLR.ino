@@ -35,6 +35,7 @@ void loop()
 
 	while(1)
 	{
+
 		for (int x = 1; x < 4; x++)
 		{
 
@@ -43,9 +44,19 @@ void loop()
 			LEDPlayProg_compact(0xFF, 0, x);
 			delay(500);
 
-			LEDPlayTxtWindow_compact(0xFF, 0, 0, 5, 100, 3, 2,255,255,255, string);
-		
+			LEDPlayTxtWindow_compact(0xFF, 0, 0, 5, 100, 3, 2, 255, 255, 255, string);
+
+			for (int i = 0; i < 32; i++)
+			{
+				LEDBrightness(0xFF, i);
+				delay(2500);
+			//	Serial.print("Brightness  ");
+			//	Serial.println(i);
+			}
+			
+
 		}
+		
 	}
 }
 
@@ -123,7 +134,6 @@ Compose CC data for: Play text in window CC=0x12
 */
 void LEDPlayTxtWindow_compact(uint8_t ID, uint8_t window, uint8_t effect, uint8_t alignment, uint8_t speed, uint16_t stayTime, uint8_t font, uint8_t Red, uint8_t Green, uint8_t Blue, char *Text)  //option
 {
-	
 	char CCout[100] = {};
 	int pCCoutlength;
 	char Cmd_out[100] = {};
@@ -155,8 +165,42 @@ void LEDPlayTxtWindow_compact(uint8_t ID, uint8_t window, uint8_t effect, uint8_
 
 	LEDPackCmd(ID, CCout, pCCoutlength, Cmd_out, &paclen);//pack CMD data
 	SendLEDText232(Cmd_out, paclen); //send CMD data
+}
 
+void LEDBrightness(uint8_t ID, uint8_t brightness)
+{
+	char outbuffer[100] = {};
+	int paclen;
 
+	uint16_t crc = 0;
+	int count = 0;
+
+	brightness = 31 - brightness;
+
+	//function logic
+	outbuffer[count++] = 0x68;
+	outbuffer[count++] = 0x32;
+	outbuffer[count++] = ID;
+	outbuffer[count++] = 0x46;
+	outbuffer[count++] = 0x01; //packet count number
+	outbuffer[count++] = 0x00; //packet count number-1
+
+	for (int i = 0; i < 24; i++)  //24 hours
+	{
+		outbuffer[count++] = brightness;  // sets same brightness for all 24 hours
+	}
+
+	for (int i = 0; i < count; i++)	//calculation of packet CRC
+	{
+		uint8_t a = outbuffer[i]; // to cast a number- if not, 128 is negative
+		crc = crc + a;
+	}
+
+	outbuffer[count++] = lowByte(crc);
+	outbuffer[count++] = highByte(crc);
+	paclen = count;
+
+	SendLEDText232(outbuffer, paclen); //send CMD data
 }
 
 
