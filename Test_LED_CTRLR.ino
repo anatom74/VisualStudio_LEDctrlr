@@ -46,15 +46,22 @@ void loop()
 
 			LEDPlayTxtWindow_compact(0xFF, 0, 0, 5, 100, 3, 2, 255, 255, 255, string);
 
-			for (int i = 0; i < 32; i++)
-			{
-				LEDBrightness(0xFF, i);
-				delay(2500);
+			//for (int i = 0; i < 32; i++)
+			//{
+			//	LEDBrightness(0xFF, i);
+			//	delay(2500);
 			//	Serial.print("Brightness  ");
 			//	Serial.println(i);
-			}
+			//}
 			
 
+		}
+		for (int i = 0; i < 3; i++)
+		{
+			LEDPower_OnOff(0xFF, 0);
+			delay(1000);
+			LEDPower_OnOff(0xFF, 1);
+			delay(1500);
 		}
 		
 	}
@@ -169,38 +176,56 @@ void LEDPlayTxtWindow_compact(uint8_t ID, uint8_t window, uint8_t effect, uint8_
 
 void LEDBrightness(uint8_t ID, uint8_t brightness)
 {
-	char outbuffer[100] = {};
+	uint8_t protocol = 0x46;//power control code
+
+	char CCout[100] = {};
+	int pCCoutlength;
+	char Cmd_out[100] = {};
 	int paclen;
 
-	uint16_t crc = 0;
 	int count = 0;
 
-	brightness = 31 - brightness;
+	//function logic
+	CCout[count++] = 0x00;
+	for (int i = 0; i < 24; i++)	//calculation of packet CRC
+	{
+		CCout[count++] = brightness;  // sets same brightness for all 24 hours
+	}
+
+	pCCoutlength = count;
+
+	LEDPack_BasicCmd(ID, protocol, CCout, pCCoutlength, Cmd_out, &paclen);//pack CMD data
+	SendLEDText232(Cmd_out, paclen); //send CMD data
+}
+
+
+
+void LEDPower_OnOff(uint8_t ID, uint8_t power)
+{
+	
+	uint8_t protocol = 0x76;//power control code
+
+	char CCout[100] = {};
+	int pCCoutlength;
+	char Cmd_out[100] = {};
+	int paclen; 
+
+	int count = 0;
 
 	//function logic
-	outbuffer[count++] = 0x68;
-	outbuffer[count++] = 0x32;
-	outbuffer[count++] = ID;
-	outbuffer[count++] = 0x46;
-	outbuffer[count++] = 0x01; //packet count number
-	outbuffer[count++] = 0x00; //packet count number-1
+	CCout[count++] = 0x00;
+	CCout[count++] = power; //power status 0 off, 1 on
 
-	for (int i = 0; i < 24; i++)  //24 hours
+		for (int i = 0; i < 7; i++)	//calculation of packet CRC
 	{
-		outbuffer[count++] = brightness;  // sets same brightness for all 24 hours
+		CCout[count++]=0x00; // fill 0
+		
 	}
 
-	for (int i = 0; i < count; i++)	//calculation of packet CRC
-	{
-		uint8_t a = outbuffer[i]; // to cast a number- if not, 128 is negative
-		crc = crc + a;
-	}
+	pCCoutlength = count;
 
-	outbuffer[count++] = lowByte(crc);
-	outbuffer[count++] = highByte(crc);
-	paclen = count;
-
-	SendLEDText232(outbuffer, paclen); //send CMD data
+	LEDPack_BasicCmd(ID, protocol, CCout, pCCoutlength, Cmd_out, &paclen);//pack CMD data
+	SendLEDText232(Cmd_out, paclen); //send CMD data
 }
 
 
@@ -223,10 +248,10 @@ void LEDPackCmd(uint8_t id, char *CCdata, int CClength, char *outbuffer, int *pB
 	outbuffer[count++] = id;
 	outbuffer[count++] = 0x7B;
 	outbuffer[count++] = 0x00; //0-not returning back info, 1 - return back info
-	outbuffer[count++] = lowByte(CClength);
+	outbuffer[count++] = lowByte(CClength); //
 	outbuffer[count++] = highByte(CClength);
-	outbuffer[count++] = 0x00;
-	outbuffer[count++] = 0x00;
+	outbuffer[count++] = 0x00; //When the packet sequence number is equal to when the last packet sequence number, indicating that this is the last one package.
+	outbuffer[count++] = 0x00; //The total number of packages minus 1.
 
 	for (int i = 0; i < CClength; i++)
 	{
@@ -247,6 +272,65 @@ void LEDPackCmd(uint8_t id, char *CCdata, int CClength, char *outbuffer, int *pB
 	*pBufflength = count;
 }
 
+
+
+/**
+Compose Led command package for sending over serial. basic commands 
+
+
+@id ID of the controller card (FF for all)
+@protocolCode: 
+			Restart hardware	0x2d
+			Restart APP	0xfe
+			Write file(Open)	0x30
+			Write file (Write)	0x32
+			Write file (Close)	0x33
+			Quick write file (Open)	0x50
+			Quick write file (Write)	0x51
+			Quick write file (Close)	0x52
+			Time query and set	0x47
+			Brightness query and set	0x46
+			Query version info	0x2e
+			Power ON/OFF info	0x45
+			Power ON/OFF control	0x76
+			Query temperature	0x75
+			Remove file	0x2c
+			Query free disk space	0x29
+@*CCdata CCdata sub command
+@*CClength length of CCdata command buffer
+@*outbuffer output buffer of packed command
+@*bufflength legth of outbuffer
+*/
+void LEDPack_BasicCmd(uint8_t id, uint8_t protocolCode, char *CCdata, int CClength, char *outbuffer, int *pBufflength)
+{
+	uint16_t crc = 0;
+	int count = 0;
+
+	outbuffer[count++] = 0x68;
+	outbuffer[count++] = 0x32;
+	outbuffer[count++] = id;
+	outbuffer[count++] = protocolCode;
+	outbuffer[count++] = 0x01; //0-not returning back info, 1 - return back info
+
+
+	for (int i = 0; i < CClength; i++)
+	{
+		outbuffer[count++] = CCdata[i];
+	}
+
+	for (int i = 0; i < count; i++)	//calculation of packet CRC
+	{
+
+		uint8_t a = outbuffer[i]; // to cast a number- if not, 128 is negative
+		crc = crc + a;
+	}
+
+	outbuffer[count++] = lowByte(crc);
+	outbuffer[count++] = highByte(crc);
+
+	//strcat(LEDcmd, buffer);
+	*pBufflength = count;
+}
 
 /**
 Send command packet to Led controller over serial port
