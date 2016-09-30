@@ -30,38 +30,46 @@ void loop()
 //	int packetlen;
 	char *string;
 	string = "hey";
-	
-	//char cout = *CCcmd;
+	int brt = 0;
 
+	//char cout = *CCcmd;
+	setBrightness(0xFF, 0);
+	playProgram(0xFF, 1, 2);
 	while(1)
 	{
 
-		for (int x = 1; x < 4; x++)
+		//for (int x = 1; x < 4; x++)
+		//{
+
+		//	delay(500);
+
+		//	LEDPlayProg_compact(0xFF, 0, x);
+		//	delay(500);
+
+		//	LEDPlayTxtWindow_compact(0xFF, 0, 0, 5, 100, 3, 2, 255, 255, 255, string);
+
+		//	//for (int i = 0; i < 32; i++)
+		//	//{
+		//	//	LEDBrightness(0xFF, i);
+		//	//	delay(2500);
+		//	//	Serial.print("Brightness  ");
+		//	//	Serial.println(i);
+		//	//}
+		//	
+
+		//}
+		//for (int i = 0; i < 3; i++)
+		//{
+		//	LEDPower_OnOff(0xFF, 0);
+		//	delay(1000);
+		//	LEDPower_OnOff(0xFF, 1);
+		//	delay(1500);
+		//}
+		setBrightness(0xFF, brt);
+		brt=brt+3;
+		if (brt>31)
 		{
-
-			delay(500);
-
-			LEDPlayProg_compact(0xFF, 0, x);
-			delay(500);
-
-			LEDPlayTxtWindow_compact(0xFF, 0, 0, 5, 100, 3, 2, 255, 255, 255, string);
-
-			//for (int i = 0; i < 32; i++)
-			//{
-			//	LEDBrightness(0xFF, i);
-			//	delay(2500);
-			//	Serial.print("Brightness  ");
-			//	Serial.println(i);
-			//}
-			
-
-		}
-		for (int i = 0; i < 3; i++)
-		{
-			LEDPower_OnOff(0xFF, 0);
-			delay(1000);
-			LEDPower_OnOff(0xFF, 1);
-			delay(1500);
+			brt = 0;
 		}
 		
 	}
@@ -70,14 +78,14 @@ void loop()
 
 
 /**
-	Compose CC data for Play desired program on LED screen.
+	Compose CC data for Play desired program on LED screen. CC:0x08
 
 	@ID - id of display (0xFF for any)
 	@option Bit0: Whether to save select play message to flash.    0 not to save，1 save。Bit1~7: Reserved, set to 0
 	@prog_num Number of program to play 1~255 or 0
 	note that limit is for 1 program at once only!!!!
 */
-void LEDPlayProg_compact(uint8_t ID, uint8_t option, uint8_t prog_num)  //option
+void playProgram(uint8_t ID, uint8_t option, uint8_t prog_num)  //option
 {
 	char CCout[100] = {};
 	int pCCoutlength;
@@ -85,14 +93,14 @@ void LEDPlayProg_compact(uint8_t ID, uint8_t option, uint8_t prog_num)  //option
 	int paclen;
 
   //function logic
-	CCout[0] = 0x08;
+	CCout[0] = 0x08; //command ID
 	CCout[1] = option;
 	CCout[2] = 0x01;  //1 program only
 	CCout[3] = prog_num;
 	pCCoutlength = 4;
 
-	LEDPackCmd(ID, CCout, pCCoutlength, Cmd_out, &paclen);//pack CMD data
-	SendLEDText232(Cmd_out, paclen); //send CMD data
+	packCMD(ID, CCout, pCCoutlength, Cmd_out, &paclen);//pack CMD data
+	sendCMD(Cmd_out, paclen); //send CMD data
 
 }
 
@@ -139,7 +147,7 @@ Compose CC data for: Play text in window CC=0x12
 @*Text  - text string to show
 
 */
-void LEDPlayTxtWindow_compact(uint8_t ID, uint8_t window, uint8_t effect, uint8_t alignment, uint8_t speed, uint16_t stayTime, uint8_t font, uint8_t Red, uint8_t Green, uint8_t Blue, char *Text)  //option
+void playTextWindow(uint8_t ID, uint8_t window, uint8_t effect, uint8_t alignment, uint8_t speed, uint16_t stayTime, uint8_t font, uint8_t Red, uint8_t Green, uint8_t Blue, char *Text)  //option
 {
 	char CCout[100] = {};
 	int pCCoutlength;
@@ -170,11 +178,11 @@ void LEDPlayTxtWindow_compact(uint8_t ID, uint8_t window, uint8_t effect, uint8_
 
 	pCCoutlength = 11 + length;
 
-	LEDPackCmd(ID, CCout, pCCoutlength, Cmd_out, &paclen);//pack CMD data
-	SendLEDText232(Cmd_out, paclen); //send CMD data
+	packCMD(ID, CCout, pCCoutlength, Cmd_out, &paclen);//pack CMD data
+	sendCMD(Cmd_out, paclen); //send CMD data
 }
 
-void LEDBrightness(uint8_t ID, uint8_t brightness)
+void setBrightness(uint8_t ID, uint8_t brightness)
 {
 	uint8_t protocol = 0x46;//power control code
 
@@ -188,19 +196,19 @@ void LEDBrightness(uint8_t ID, uint8_t brightness)
 	//function logic
 	CCout[count++] = 0x00;
 	for (int i = 0; i < 24; i++)	//calculation of packet CRC
-	{
+	{powerOnOff
 		CCout[count++] = brightness;  // sets same brightness for all 24 hours
 	}
 
 	pCCoutlength = count;
 
-	LEDPack_BasicCmd(ID, protocol, CCout, pCCoutlength, Cmd_out, &paclen);//pack CMD data
-	SendLEDText232(Cmd_out, paclen); //send CMD data
+	packBasicCMD(ID, protocol, CCout, pCCoutlength, Cmd_out, &paclen);//pack CMD data
+	sendCMD(Cmd_out, paclen); //send CMD data
 }
 
 
 
-void LEDPower_OnOff(uint8_t ID, uint8_t power)
+void powerOnOff(uint8_t ID, uint8_t power)
 {
 	
 	uint8_t protocol = 0x76;//power control code
@@ -224,8 +232,8 @@ void LEDPower_OnOff(uint8_t ID, uint8_t power)
 
 	pCCoutlength = count;
 
-	LEDPack_BasicCmd(ID, protocol, CCout, pCCoutlength, Cmd_out, &paclen);//pack CMD data
-	SendLEDText232(Cmd_out, paclen); //send CMD data
+	packBasicCMD(ID, protocol, CCout, pCCoutlength, Cmd_out, &paclen);//pack CMD data
+	sendCMD(Cmd_out, paclen); //send CMD data
 }
 
 
@@ -238,7 +246,7 @@ Compose Led command package for sending over serial.
 @*outbuffer output buffer of packed command
 @*bufflength legth of outbuffer
 */
-void LEDPackCmd(uint8_t id, char *CCdata, int CClength, char *outbuffer, int *pBufflength)
+void packCMD(uint8_t id, char *CCdata, int CClength, char *outbuffer, int *pBufflength)
 {
 	uint16_t crc = 0;
 	int count = 0;
@@ -301,7 +309,7 @@ Compose Led command package for sending over serial. basic commands
 @*outbuffer output buffer of packed command
 @*bufflength legth of outbuffer
 */
-void LEDPack_BasicCmd(uint8_t id, uint8_t protocolCode, char *CCdata, int CClength, char *outbuffer, int *pBufflength)
+void packBasicCMD(uint8_t id, uint8_t protocolCode, char *CCdata, int CClength, char *outbuffer, int *pBufflength)
 {
 	uint16_t crc = 0;
 	int count = 0;
@@ -337,7 +345,7 @@ Send command packet to Led controller over serial port
 
 adds start and end byte and inserts needed escaped chars
 */
-void SendLEDText232(char *buffer, int bufflen) //add start+stop and escaped chars and send them to serial port
+void sendCMD(char *buffer, int bufflen) //add start+stop and escaped chars and send them to serial port
 {
 	uint8_t tempval;
 	uint8_t cnt = 0;
